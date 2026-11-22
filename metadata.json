@@ -1,0 +1,8 @@
+{
+  "name": "FiXLink Prp",
+  "description": "FiXLink: Direct movie link resolver and multi-connection download manager with pause/resume and queue control",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
