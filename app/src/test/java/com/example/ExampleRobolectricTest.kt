@@ -32,8 +32,8 @@ class ExampleRobolectricTest {
     fun `read app name and unique package id from context`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val appName = context.getString(R.string.app_name)
-        assertEquals("FiXLink", appName)
-        assertEquals("com.aistudio.fixlink.gmrprr", context.packageName)
+        assertEquals("MIxmedia", appName)
+        assertEquals("com.aistudio.mixmedia.vpxkqm", context.packageName)
     }
 
     @Test
@@ -147,14 +147,14 @@ class ExampleRobolectricTest {
         assertEquals(1, engine.connectionsPerDownload.value)
         engine.setConnectionsPerDownload(8)
 
-        val customUri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AMovies%2FFiXLink")
+        val customUri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AMovies%2FMIxmedia")
         engine.setCustomSaveLocation(customUri)
         assertTrue(engine.saveLocation.value.isCustom)
         assertEquals(customUri.toString(), engine.saveLocation.value.treeUriString)
 
         engine.resetSaveLocationToDefault()
         assertFalse(engine.saveLocation.value.isCustom)
-        assertEquals("Downloads/FiXLink", engine.saveLocation.value.displayPath)
+        assertEquals("Downloads/MIxmedia", engine.saveLocation.value.displayPath)
 
         val first = engine.enqueue(
             url = "http://127.0.0.1:1/video1.mkv?expire=111",

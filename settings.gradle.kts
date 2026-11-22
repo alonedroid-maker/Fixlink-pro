@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "FiXLink"
+rootProject.name = "MIxmedia"
 
 include(":app")

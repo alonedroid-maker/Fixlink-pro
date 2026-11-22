@@ -37,10 +37,10 @@ class GitHubUpdateChecker(
     private val client: OkHttpClient = defaultClient(),
 ) {
     companion object {
-        const val REPO_URL = "https://github.com/imsnzm-dev/fixlink"
-        private const val LATEST_RELEASE_API = "https://api.github.com/repos/imsnzm-dev/fixlink/releases/latest"
-        private const val RELEASES_LIST_API = "https://api.github.com/repos/imsnzm-dev/fixlink/releases?per_page=1"
-        private const val TAGS_LIST_API = "https://api.github.com/repos/imsnzm-dev/fixlink/tags?per_page=1"
+        const val REPO_URL = "https://github.com/alonedroid-maker/Fixlink-pro"
+        private const val LATEST_RELEASE_API = "https://api.github.com/repos/alonedroid-maker/Fixlink-pro/releases/latest"
+        private const val RELEASES_LIST_API = "https://api.github.com/repos/alonedroid-maker/Fixlink-pro/releases?per_page=1"
+        private const val TAGS_LIST_API = "https://api.github.com/repos/alonedroid-maker/Fixlink-pro/tags?per_page=1"
 
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(12, TimeUnit.SECONDS)
@@ -162,7 +162,7 @@ class GitHubUpdateChecker(
         val req = Request.Builder()
             .url(url)
             .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "FiXLink-Android")
+            .header("User-Agent", "MIxmedia-Android")
             .build()
         client.newCall(req).execute().use { resp ->
             if (resp.code == 404) return null
@@ -176,7 +176,7 @@ class GitHubUpdateChecker(
         val req = Request.Builder()
             .url(url)
             .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "FiXLink-Android")
+            .header("User-Agent", "MIxmedia-Android")
             .build()
         client.newCall(req).execute().use { resp ->
             if (resp.code == 404) return null

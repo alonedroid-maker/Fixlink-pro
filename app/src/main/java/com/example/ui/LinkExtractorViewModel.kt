@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 enum class AppDestination {
+    DISCOVER,
     RESOLVER,
     DOWNLOADS,
     SETTINGS,

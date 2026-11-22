@@ -72,6 +72,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.unit.dp
 import com.example.download.DownloadSaveLocation
 import com.example.download.QueueConcurrency
+import com.example.media.MediaPreferences
+import com.example.media.MovieDiscoveryState
 import com.example.network.GitHubUpdateChecker
 import com.example.network.GitHubUpdateResult
 
@@ -95,6 +97,14 @@ fun SettingsScreen(
     onDownloadReleaseApk: (url: String, fileName: String?) -> Unit,
     onAttemptUnlockDeveloper: (String) -> Boolean,
     onDisableDeveloperMode: () -> Unit,
+    discoveryState: MovieDiscoveryState? = null,
+    onUpdateMediaPreferences: (((MediaPreferences) -> MediaPreferences) -> Unit)? = null,
+    onToggleSourceSite: ((String, Boolean) -> Unit)? = null,
+    onAddCustomSourceSite: ((String, String) -> Boolean)? = null,
+    onRemoveCustomSourceSite: ((String) -> Unit)? = null,
+    onClearMediaCache: (() -> Unit)? = null,
+    onClearSearchHistory: (() -> Unit)? = null,
+    onShowMessage: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var showPasswordDialog by remember { mutableStateOf(false) }
@@ -437,6 +447,26 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            if (discoveryState != null && onUpdateMediaPreferences != null &&
+                onToggleSourceSite != null && onAddCustomSourceSite != null &&
+                onRemoveCustomSourceSite != null && onClearMediaCache != null &&
+                onClearSearchHistory != null && onShowMessage != null
+            ) {
+                MovieDiscoverySettingsSection(
+                    preferences = discoveryState.preferences,
+                    sourceSites = discoveryState.sourceSites,
+                    cacheSizeBytes = discoveryState.cacheSizeBytes,
+                    strings = strings,
+                    onUpdatePreferences = onUpdateMediaPreferences,
+                    onToggleSite = onToggleSourceSite,
+                    onAddCustomSite = onAddCustomSourceSite,
+                    onRemoveCustomSite = onRemoveCustomSourceSite,
+                    onClearCache = onClearMediaCache,
+                    onClearSearchHistory = onClearSearchHistory,
+                    onShowMessage = onShowMessage,
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))

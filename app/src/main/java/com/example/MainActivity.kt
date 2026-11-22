@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import com.example.download.DownloadForegroundService
 import com.example.download.DownloadManagerHolder
 import com.example.intent.VlcIntentHelper
+import com.example.media.MovieDiscoveryViewModel
 import com.example.ui.AppDestination
 import com.example.ui.AppLanguage
 import com.example.ui.FiXLinkApp
@@ -20,6 +21,7 @@ import com.example.ui.theme.LinkYabTheme
 class MainActivity : ComponentActivity() {
 
     private val viewModel: LinkExtractorViewModel by viewModels()
+    private val discoveryViewModel: MovieDiscoveryViewModel by viewModels()
 
     private val prefs by lazy {
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -30,6 +32,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val downloadEngine = DownloadManagerHolder.get(applicationContext)
+        discoveryViewModel.initialize(applicationContext)
 
         if (savedInstanceState == null) {
             val savedLangCode = prefs.getString(KEY_LANGUAGE, AppLanguage.EN.code)
@@ -49,6 +52,7 @@ class MainActivity : ComponentActivity() {
             LinkYabTheme {
                 FiXLinkApp(
                     viewModel = viewModel,
+                    discoveryViewModel = discoveryViewModel,
                     downloadEngine = downloadEngine,
                     onLanguagePersisted = { lang ->
                         prefs.edit().putString(KEY_LANGUAGE, lang.code).apply()

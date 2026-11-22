@@ -91,7 +91,7 @@ class DownloadForegroundService : Service() {
         val title = if (activeTasks.size == 1) {
             activeTasks.first().fileName
         } else {
-            "FiXLink • ${activeTasks.size} active downloads"
+            "MIxmedia • ${activeTasks.size} active downloads"
         }
 
         val avgProgress = if (activeTasks.isNotEmpty()) {
@@ -143,7 +143,7 @@ class DownloadForegroundService : Service() {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "FiXLink Downloads",
+                "MIxmedia Downloads",
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 description = "Active file download progress"
@@ -153,7 +153,7 @@ class DownloadForegroundService : Service() {
     }
 
     companion object {
-        const val CHANNEL_ID = "fixlink_downloads_channel"
+        const val CHANNEL_ID = "mixmedia_downloads_channel"
         const val NOTIFICATION_ID = 4091
         const val ACTION_PAUSE_ALL = "com.example.download.ACTION_PAUSE_ALL"
         const val EXTRA_OPEN_DOWNLOADS = "extra_open_downloads"

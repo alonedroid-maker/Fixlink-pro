@@ -42,6 +42,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Clear
@@ -50,12 +51,15 @@ import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -106,6 +110,9 @@ import com.example.download.DownloadStatus
 import com.example.download.DownloadTask
 import com.example.download.PendingDownloadRequest
 import com.example.intent.VlcIntentHelper
+import com.example.media.DiscoveryRoute
+import com.example.media.FuzzyTitleMatcher
+import com.example.media.MovieDiscoveryViewModel
 import com.example.network.CurlResolutionResult
 import com.example.ui.theme.JetBrainsMonoFamily
 import kotlinx.coroutines.launch
@@ -113,11 +120,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun FiXLinkApp(
     viewModel: LinkExtractorViewModel,
+    discoveryViewModel: MovieDiscoveryViewModel,
     downloadEngine: DownloadEngine,
     onLanguagePersisted: (AppLanguage) -> Unit,
     onDeveloperModePersisted: (Boolean) -> Unit,
 ) {
     val state by viewModel.screenState.collectAsStateWithLifecycle()
+    val discoveryState by discoveryViewModel.state.collectAsStateWithLifecycle()
     val downloadTasks by downloadEngine.tasks.collectAsStateWithLifecycle()
     val concurrencyLimit by downloadEngine.concurrencyLimit.collectAsStateWithLifecycle()
     val connectionsPerDownload by downloadEngine.connectionsPerDownload.collectAsStateWithLifecycle()
@@ -166,6 +175,7 @@ fun FiXLinkApp(
     }
 
     fun ensureNotificationPermissionIfNeeded() {
+        if (!discoveryState.preferences.downloadNotificationsEnabled) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(
                 context,
@@ -263,11 +273,32 @@ fun FiXLinkApp(
     }
 
     fun openExternalUrl(url: String) {
+        if (!FuzzyTitleMatcher.isSafeHttpUrl(url)) return
         try {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: Exception) {
             showMessage(strings.msgNoBrowser)
         }
+    }
+
+    fun shareText(text: String) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        context.startActivity(Intent.createChooser(intent, strings.discover.detailsShare))
+    }
+
+    fun copyText(label: String, text: String, toastMessage: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+        showMessage(toastMessage)
+    }
+
+    fun sendUrlToResolver(url: String) {
+        viewModel.onInputChanged(url)
+        viewModel.navigateTo(AppDestination.RESOLVER)
+        viewModel.executeExtraction()
     }
 
     fun toggleVlcInterceptor(enabled: Boolean) {
@@ -276,7 +307,12 @@ fun FiXLinkApp(
         showMessage(if (enabled) strings.msgVlcEnabled else strings.msgVlcDisabled)
     }
 
-    if (state.destination != AppDestination.RESOLVER) {
+    val isInsideSubRoute = state.destination == AppDestination.DISCOVER && discoveryState.canPopRoute
+    if (isInsideSubRoute && discoveryState.currentRoute !is DiscoveryRoute.Browser) {
+        BackHandler {
+            discoveryViewModel.popRoute()
+        }
+    } else if (state.destination != AppDestination.RESOLVER && !isInsideSubRoute) {
         BackHandler {
             viewModel.navigateTo(AppDestination.RESOLVER)
         }
@@ -300,6 +336,28 @@ fun FiXLinkApp(
                             containerColor = MaterialTheme.colorScheme.surface,
                         ) {
                             NavigationBarItem(
+                                selected = state.destination == AppDestination.DISCOVER,
+                                onClick = {
+                                    if (state.destination == AppDestination.DISCOVER) {
+                                        discoveryViewModel.resetToHome()
+                                    } else {
+                                        viewModel.navigateTo(AppDestination.DISCOVER)
+                                    }
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (state.destination == AppDestination.DISCOVER) {
+                                            Icons.Rounded.Movie
+                                        } else {
+                                            Icons.Outlined.Movie
+                                        },
+                                        contentDescription = strings.navDiscover,
+                                    )
+                                },
+                                label = { Text(strings.navDiscover, maxLines = 1) },
+                                modifier = Modifier.testTag("nav_discover"),
+                            )
+                            NavigationBarItem(
                                 selected = state.destination == AppDestination.RESOLVER,
                                 onClick = { viewModel.navigateTo(AppDestination.RESOLVER) },
                                 icon = {
@@ -312,7 +370,7 @@ fun FiXLinkApp(
                                         contentDescription = strings.navResolver,
                                     )
                                 },
-                                label = { Text(strings.navResolver) },
+                                label = { Text(strings.navResolver, maxLines = 1) },
                                 modifier = Modifier.testTag("nav_resolver"),
                             )
                             NavigationBarItem(
@@ -377,6 +435,18 @@ fun FiXLinkApp(
                         ) {
                             Spacer(modifier = Modifier.height(12.dp))
                             NavigationRailItem(
+                                selected = state.destination == AppDestination.DISCOVER,
+                                onClick = {
+                                    if (state.destination == AppDestination.DISCOVER) {
+                                        discoveryViewModel.resetToHome()
+                                    } else {
+                                        viewModel.navigateTo(AppDestination.DISCOVER)
+                                    }
+                                },
+                                icon = { Icon(Icons.Rounded.Movie, contentDescription = strings.navDiscover) },
+                                label = { Text(strings.navDiscover) },
+                            )
+                            NavigationRailItem(
                                 selected = state.destination == AppDestination.RESOLVER,
                                 onClick = { viewModel.navigateTo(AppDestination.RESOLVER) },
                                 icon = { Icon(Icons.Rounded.Link, contentDescription = strings.navResolver) },
@@ -414,6 +484,119 @@ fun FiXLinkApp(
                     }
 
                     when (state.destination) {
+                        AppDestination.DISCOVER -> {
+                            when (val route = discoveryState.currentRoute) {
+                                is DiscoveryRoute.HomeSearch -> {
+                                    MovieSearchScreen(
+                                        state = discoveryState,
+                                        strings = strings,
+                                        onQueryChanged = { discoveryViewModel.onSearchQueryChanged(it) },
+                                        onSubmitSearch = discoveryViewModel::submitSearch,
+                                        onClearSearch = discoveryViewModel::clearSearchInput,
+                                        onSelectRecentSearch = discoveryViewModel::selectRecentSearch,
+                                        onRemoveRecentSearch = discoveryViewModel::removeRecentSearch,
+                                        onOpenDetails = discoveryViewModel::openMediaDetails,
+                                        onToggleFavorite = { item ->
+                                            val wasFav = discoveryViewModel.isFavorite(item.id)
+                                            discoveryViewModel.toggleFavorite(item)
+                                            showMessage(if (wasFav) strings.discover.msgFavoriteRemoved else strings.discover.msgFavoriteAdded)
+                                        },
+                                        onOpenSavedPage = { page ->
+                                            if (discoveryState.preferences.preferInternalBrowser) {
+                                                discoveryViewModel.openInternalBrowser(page.url, page.title, page.mediaTitle)
+                                            } else {
+                                                openExternalUrl(page.url)
+                                            }
+                                        },
+                                        onOpenQuickSite = { site ->
+                                            if (discoveryState.preferences.preferInternalBrowser) {
+                                                discoveryViewModel.openInternalBrowser(site.baseUrl, site.name)
+                                            } else {
+                                                openExternalUrl(site.baseUrl)
+                                            }
+                                        },
+                                    )
+                                }
+
+                                is DiscoveryRoute.Details -> {
+                                    MediaDetailsScreen(
+                                        summary = route.summary,
+                                        detailsState = discoveryState.detailsState,
+                                        isFavorite = discoveryViewModel.isFavorite(route.summary.id),
+                                        strings = strings,
+                                        onBack = { discoveryViewModel.popRoute() },
+                                        onRetry = discoveryViewModel::retryMediaDetails,
+                                        onToggleFavorite = { item ->
+                                            val wasFav = discoveryViewModel.isFavorite(item.id)
+                                            discoveryViewModel.toggleFavorite(item)
+                                            showMessage(if (wasFav) strings.discover.msgFavoriteRemoved else strings.discover.msgFavoriteAdded)
+                                        },
+                                        onSearchSources = discoveryViewModel::openSourceDiscovery,
+                                        onOpenUrl = { url, title ->
+                                            if (discoveryState.preferences.preferInternalBrowser) {
+                                                discoveryViewModel.openInternalBrowser(url, title, route.summary.title)
+                                            } else {
+                                                openExternalUrl(url)
+                                            }
+                                        },
+                                        onShareMedia = ::shareText,
+                                    )
+                                }
+
+                                is DiscoveryRoute.Sources -> {
+                                    SourceDiscoveryScreen(
+                                        target = route.target,
+                                        sourceState = discoveryState.sourceState,
+                                        modifiers = discoveryState.queryModifiers,
+                                        customQuery = discoveryState.customSourceQuery,
+                                        verifyingUrlId = discoveryState.verifyingUrlId,
+                                        savedPages = discoveryState.savedSourcePages,
+                                        strings = strings,
+                                        onBack = { discoveryViewModel.popRoute() },
+                                        onUpdateModifiers = discoveryViewModel::updateQueryModifiers,
+                                        onRunCustomQuery = discoveryViewModel::runCustomSourceQuery,
+                                        onVerifyLink = discoveryViewModel::verifySourceLinkStatus,
+                                        onOpenInAppBrowser = { url, title ->
+                                            discoveryViewModel.openInternalBrowser(url, title, route.target.title)
+                                        },
+                                        onOpenExternal = ::openExternalUrl,
+                                        onCopyUrl = { url -> copyText("source_url", url, strings.msgTaskUrlCopied) },
+                                        onToggleBookmark = { url, title ->
+                                            val wasSaved = discoveryViewModel.isSourceSaved(url)
+                                            discoveryViewModel.toggleSavedSourcePage(url, title, route.target.title)
+                                            showMessage(if (wasSaved) strings.discover.msgPageRemovedBookmark else strings.discover.msgPageBookmarked)
+                                        },
+                                        onDownloadCandidate = { url, fileName, typeLabel ->
+                                            discoveryViewModel.requestBrowserDownloadConfirmation(url, fileName, typeLabel)
+                                        },
+                                        onSendToResolver = ::sendUrlToResolver,
+                                    )
+                                }
+
+                                is DiscoveryRoute.Browser -> {
+                                    InternalBrowserScreen(
+                                        initialUrl = route.url,
+                                        initialTitle = route.title,
+                                        isBookmarked = discoveryViewModel.isSourceSaved(route.url),
+                                        strings = strings,
+                                        onClose = { discoveryViewModel.popRoute() },
+                                        onOpenExternal = ::openExternalUrl,
+                                        onCopyUrl = { url -> copyText("browser_url", url, strings.msgTaskUrlCopied) },
+                                        onShareUrl = ::shareText,
+                                        onToggleBookmark = { url, title ->
+                                            val wasSaved = discoveryViewModel.isSourceSaved(url)
+                                            discoveryViewModel.toggleSavedSourcePage(url, title, route.mediaTitle)
+                                            showMessage(if (wasSaved) strings.discover.msgPageRemovedBookmark else strings.discover.msgPageBookmarked)
+                                        },
+                                        onSendToResolver = ::sendUrlToResolver,
+                                        onRequestDownloadConfirmation = { url, fileName, typeLabel, pageUrl ->
+                                            discoveryViewModel.requestBrowserDownloadConfirmation(url, fileName, typeLabel, pageUrl)
+                                        },
+                                    )
+                                }
+                            }
+                        }
+
                         AppDestination.RESOLVER -> {
                             ResolverScreen(
                                 state = state,
@@ -510,10 +693,74 @@ fun FiXLinkApp(
                                     onDeveloperModePersisted(false)
                                     showMessage(strings.msgDevDisabled)
                                 },
+                                discoveryState = discoveryState,
+                                onUpdateMediaPreferences = discoveryViewModel::updatePreferences,
+                                onToggleSourceSite = discoveryViewModel::toggleSourceSiteEnabled,
+                                onAddCustomSourceSite = discoveryViewModel::addCustomSourceSite,
+                                onRemoveCustomSourceSite = discoveryViewModel::removeCustomSourceSite,
+                                onClearMediaCache = discoveryViewModel::clearAllCaches,
+                                onClearSearchHistory = discoveryViewModel::clearSearchHistory,
+                                onShowMessage = ::showMessage,
                             )
                         }
                     }
                 }
+            }
+
+            discoveryState.pendingBrowserDownload?.let { pending ->
+                AlertDialog(
+                    onDismissRequest = discoveryViewModel::dismissBrowserDownloadConfirmation,
+                    title = { Text(strings.discover.browserConfirmDownloadTitle) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = strings.discover.browserConfirmDownloadMessage(pending.fileName, pending.fileTypeLabel),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = pending.url,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 3,
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                discoveryViewModel.dismissBrowserDownloadConfirmation()
+                                requestDownloadWithConflictCheck(
+                                    url = pending.url,
+                                    sourcePlayUrl = pending.sourcePageUrl,
+                                    suggestedFileName = pending.fileName,
+                                    fromResolver = false,
+                                )
+                            },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) {
+                            Text(strings.discover.actionDownloadConfirm)
+                        }
+                    },
+                    dismissButton = {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(
+                                onClick = {
+                                    discoveryViewModel.dismissBrowserDownloadConfirmation()
+                                    sendUrlToResolver(pending.url)
+                                },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) {
+                                Text(strings.discover.actionSendToResolver)
+                            }
+                            TextButton(
+                                onClick = discoveryViewModel::dismissBrowserDownloadConfirmation,
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) {
+                                Text(strings.actionDialogCancel)
+                            }
+                        }
+                    },
+                )
             }
 
             pendingConflictRequest?.let { req ->

@@ -33,7 +33,7 @@ data class DownloadSaveLocation(
         get() = !treeUriString.isNullOrBlank()
 
     companion object {
-        const val DEFAULT_DISPLAY_PATH = "Downloads/FiXLink"
+        const val DEFAULT_DISPLAY_PATH = "Downloads/MIxmedia"
     }
 }
 
